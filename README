@@ -1,0 +1,68 @@
+To create a script that displays Gmail notifications on your monitor, you can use Python along with the Gmail API and a library like `pyttsx3` for text-to-speech functionality. Here's an example script that accomplishes this:
+
+```python
+import time
+import pyttsx3
+import google.auth
+from googleapiclient.discovery import build
+from google.auth.transport.requests import Request
+
+# Initialize text-to-speech engine
+engine = pyttsx3.init()
+
+# Function to retrieve new Gmail messages
+def get_new_messages():
+    creds = None
+
+    # Check if token.pickle file exists
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
+            creds = pickle.load(token)
+
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = google.auth.default()
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+
+    # Create Gmail API service
+    service = build('gmail', 'v1', credentials=creds)
+
+    # Get the user's Gmail inbox
+    results = service.users().messages().list(userId='me', labelIds=['INBOX']).execute()
+    messages = results.get('messages', [])
+
+    if not messages:
+        print('No new messages.')
+    else:
+        print('New messages:')
+        for message in messages:
+            msg = service.users().messages().get(userId='me', id=message['id']).execute()
+            subject = None
+            for header in msg['payload']['headers']:
+                if header['name'] == 'Subject':
+                    subject = header['value']
+                    break
+            if subject:
+                print(f'Subject: {subject}')
+                engine.say(f'New message with subject: {subject}')
+                engine.runAndWait()
+
+# Monitor Gmail notifications
+while True:
+    get_new_messages()
+    time.sleep(60)  # Check for new messages every minute
+```
+
+Before running this script, you need to set up the Gmail API and obtain the required credentials. Follow the Gmail API Python Quickstart guide (https://developers.google.com/gmail/api/quickstart/python) to enable the Gmail API for your Google account and set up your credentials. Place the downloaded `credentials.json` file in the same directory as the script.
+
+Make sure you have the `pyttsx3` library installed. You can install it using `pip install pyttsx3`.
+
+When you run the script, it will check for new messages every minute. If it finds any new messages, it will print the subject of each message and speak it out loud using text-to-speech. Adjust the sleep interval (`time.sleep(60)`) if you want to change the frequency of checking for new messages.
+
+Note that this script assumes you're running it on a system with a graphical environment where text-to-speech can be heard through speakers or headphones. If you're running it on a headless server or a system without audio output, you may need to modify the script to display the notifications in a different way.
